@@ -6,7 +6,7 @@ import HomePage from './pages/HomePage';
 import SearchResults from './pages/SearchResults';
 import CourseView from './pages/CourseView';
 import ModuleView from './pages/ModuleView';
-const BASE = import.meta.env.BASE_URL;
+const BASE = '/athenaeum/';
 export default function App() {
   const [catalog, setCatalog] = useState(null);
   const [courseCache, setCourseCache] = useState({});
