@@ -1,4 +1,5 @@
 name: Deploy to GitHub Pages
+
 on:
   push:
     branches: [main]
@@ -27,17 +28,9 @@ jobs:
           cache: 'npm'
       - run: npm ci
       - run: npm run build
-      - run: ls -la dist/ && ls -la dist/courses/ || echo "NO COURSES DIR"
       - uses: actions/configure-pages@v4
       - uses: actions/upload-pages-artifact@v3
         with:
           path: ./dist
       - id: deployment
         uses: actions/deploy-pages@v4
-```
-
-Save, commit, push:
-```
-git add .
-git commit -m "fix deploy workflow"
-git push
