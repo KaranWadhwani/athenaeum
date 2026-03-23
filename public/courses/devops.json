@@ -1,0 +1,305 @@
+{
+  "id": "devops",
+  "title": "DevOps & Cloud",
+  "emoji": "☁️",
+  "tag": "DevOps",
+  "desc": "Master containers, Kubernetes, CI/CD, Infrastructure as Code, and observability",
+  "modules": [
+    {
+      "id": "dv0",
+      "title": "0. Why DevOps Matters",
+      "icon": "🌀",
+      "tagLabel": "Foundation",
+      "sections": [
+        {
+          "type": "scenario",
+          "title": "The Friday Deploy That Ruined the Weekend",
+          "content": "Friday 4 PM. Team merges a 'small' feature. Someone SSHs into production, runs git pull, restarts the service. 45 minutes of manual steps.\n\nAt 5:30 PM, alerts fire. Memory leak. Site is down. Nobody documented rollback. The engineer left for the weekend. Three people spend Saturday reverting files.\n\nThis happens when you have no automated pipeline, no infrastructure reproducibility, no rollback, no monitoring."
+        },
+        {
+          "type": "visual",
+          "title": "See It: The DevOps Lifecycle",
+          "vis": "devops_lifecycle",
+          "content": "DevOps is a continuous loop:\n\nPLAN → CODE → BUILD → TEST → RELEASE → DEPLOY → OPERATE → MONITOR → PLAN...\n\nThe LEFT side (Plan-Test) is 'Dev.' The RIGHT side (Release-Monitor) is 'Ops.'\n\nDevOps bridges the gap: same team owns both halves. Automation connects every stage."
+        },
+        {
+          "type": "concept",
+          "title": "The Four Pillars of DevOps",
+          "content": "1. CONTINUOUS INTEGRATION (CI)\nEvery code change automatically built and tested. Broken code caught in minutes.\n\n2. CONTINUOUS DELIVERY (CD)\nEvery passing build is automatically deployable. Deployments become boring non-events.\n\n3. INFRASTRUCTURE AS CODE (IaC)\nServers, networks, databases defined in version-controlled code. Reproducible environments.\n\n4. OBSERVABILITY\nLogs, metrics, traces from every service. When something breaks, you know WHAT, WHERE, WHY within minutes.\n\nThese reinforce each other: IaC makes environments reproducible → CI/CD deploys automatically → Observability proves it works → Confidence enables faster iteration.",
+          "analogy": "<b>Tech analogy:</b>\n• CI = unit tests (validate every change)\n• CD = package manager (publish reliably)\n• IaC = version control for infrastructure\n• Observability = logging and debugging for production"
+        },
+        {
+          "type": "insight",
+          "title": "Measuring DevOps: DORA Metrics",
+          "content": "Google's DORA team identified four metrics predicting delivery performance:\n\n1. DEPLOYMENT FREQUENCY: Elite: multiple/day. Low: monthly.\n2. LEAD TIME: Elite: <1 hour. Low: >6 months.\n3. CHANGE FAILURE RATE: Elite: 0-15%. Low: 46-60%.\n4. MTTR: Elite: <1 hour. Low: >6 months.\n\nCounterintuitive: teams deploying MORE FREQUENTLY have FEWER failures. Small, frequent changes are safer than big, infrequent ones.",
+          "analogy": "<b>Tech analogy:</b> DORA = application performance metrics:\n• Deploy frequency = throughput\n• Lead time = latency\n• Failure rate = error rate\n• MTTR = recovery time"
+        },
+        {
+          "type": "quiz",
+          "q": "A team deploys quarterly with 40% failure rate. They propose deploying less to reduce failures. Will this work?",
+          "opts": [
+            "Yes — fewer deploys = fewer failures",
+            "No — less frequent means LARGER changes, harder to test, more likely to fail. Fix: smaller, more frequent deploys with better CI/CD",
+            "Depends on team size",
+            "Only with more manual QA"
+          ],
+          "ans": 1,
+          "explanation": "Larger deployments bundle more changes, making testing harder and failures harder to diagnose. DORA research shows elite teams deploy multiple times daily with <15% failure. The path: smaller changes + automated testing + automated deployment + fast rollback."
+        }
+      ]
+    },
+    {
+      "id": "dv1",
+      "title": "1. Containers & Docker",
+      "icon": "📦",
+      "tagLabel": "Core",
+      "sections": [
+        {
+          "type": "scenario",
+          "title": "It Works on My Machine",
+          "content": "Your Python app works on your MacBook. In staging (Ubuntu), it crashes:\n• Different Python version (3.9 vs 3.11)\n• Missing system library\n• Different file paths\n• Environment variable not set\n\nContainers: package your app WITH its entire runtime. If it runs in the container, it runs everywhere."
+        },
+        {
+          "type": "visual",
+          "title": "See It: VM vs Container",
+          "vis": "vm_vs_container",
+          "content": "VIRTUAL MACHINE:\nHardware → Hypervisor → Guest OS (2-10 GB!) → Libs → App\nStartup: 1-5 minutes.\n\nCONTAINER:\nHardware → Host OS → Container Runtime → Libs → App\nShares host kernel. Only 50-500 MB. Startup: milliseconds.\n\nContainers are 10-100x lighter. Run 50 containers where 5 VMs would max out."
+        },
+        {
+          "type": "concept",
+          "title": "Dockerfile: The Recipe",
+          "content": "FROM python:3.11-slim\nWORKDIR /app\nCOPY requirements.txt .\nRUN pip install --no-cache-dir -r requirements.txt\nCOPY . .\nEXPOSE 8000\nCMD [\"uvicorn\", \"main:app\", \"--host\", \"0.0.0.0\"]\n\nKey concepts:\n• LAYERS: Each instruction = cached layer. Code change? Only later layers rebuild.\n• MULTI-STAGE: Large build image → copy artifact to tiny runtime. 1.2GB → 80MB.\n• .dockerignore: Exclude node_modules, .git from image.\n\nBest practices:\n• Pin versions: FROM python:3.11.7-slim (not :latest)\n• Run as non-root: USER 1000\n• One process per container",
+          "analogy": "<b>Tech analogy:</b> Dockerfile = package.json + install script:\n• FROM = base template\n• COPY + RUN pip = npm install\n• COPY . . = source code\n• CMD = npm start"
+        },
+        {
+          "type": "insight",
+          "title": "Docker Compose: Multi-Service Dev",
+          "content": "Real apps: API + database + cache + worker.\n\nservices:\n  api:\n    build: ./api\n    ports: ['8000:8000']\n    depends_on: [db, redis]\n  db:\n    image: postgres:16\n  redis:\n    image: redis:7-alpine\n  worker:\n    build: ./worker\n\ndocker compose up → All 4 services running.\nNew developer joins? One command. Done.\n\nCompose = LOCAL DEV. Production = Kubernetes."
+        },
+        {
+          "type": "quiz",
+          "q": "Docker image is 2.3 GB. Builds take 8 minutes. One line of Python triggers full rebuild. Most impactful fix?",
+          "opts": [
+            "Faster machine",
+            "Reorder layers: put COPY requirements.txt + pip install BEFORE COPY . . and use slim base image",
+            "Different language",
+            "Use docker commit instead"
+          ],
+          "ans": 1,
+          "explanation": "Two issues: (1) Layer order: COPY . . before pip install means ANY code change invalidates pip cache. Put dependencies first. (2) Base image: python:3.11 = ~900MB. python:3.11-slim = ~120MB. Combined: 2.3GB → ~200MB, 8 min → 30 sec."
+        }
+      ]
+    },
+    {
+      "id": "dv2",
+      "title": "2. Kubernetes Orchestration",
+      "icon": "☸️",
+      "tagLabel": "Core",
+      "sections": [
+        {
+          "type": "scenario",
+          "title": "20 Containers, Zero Coordination",
+          "content": "20 microservices in Docker. Then:\n• Black Friday: need 5 copies of API, only 2 of worker\n• API crashes at 3 AM, nobody restarts until morning\n• Bad deploy: SSH into 8 machines to rollback\n• Service B moved to different machine after restart\n\nYou need an ORCHESTRATOR."
+        },
+        {
+          "type": "visual",
+          "title": "See It: Kubernetes Architecture",
+          "vis": "k8s_architecture",
+          "content": "Control Plane (brain):\n• API Server: All commands go here\n• Scheduler: Which node runs which pod\n• Controller Manager: Desired state = actual state\n• etcd: Cluster state store\n\nWorker Nodes (muscle):\n• kubelet: Manages pods on each node\n• kube-proxy: Network routing\n• Pods: Smallest unit (1+ containers)\n\nYou say: '3 replicas of API.' K8s finds nodes, schedules, monitors, replaces failures."
+        },
+        {
+          "type": "concept",
+          "title": "Core Kubernetes Objects",
+          "content": "POD: Smallest unit. Usually 1 container. Ephemeral.\n\nDEPLOYMENT: Manages identical pods.\nspec:\n  replicas: 3\n  containers:\n  - name: api\n    image: myapp:v2.1\n    resources:\n      requests: { cpu: '250m', memory: '256Mi' }\n      limits: { cpu: '500m', memory: '512Mi' }\n\nSERVICE: Stable network endpoint. Pods change, Service IP permanent.\n\nINGRESS: HTTP routing. /api/* → api service. /web/* → frontend. TLS.\n\nHPA: Auto-scale replicas on CPU/memory. min: 2, max: 20, target: 70% CPU.",
+          "analogy": "<b>Tech analogy:</b>\n• Pod = running process\n• Deployment = systemd service\n• Service = DNS + load balancer\n• Ingress = nginx reverse proxy\n• ConfigMap = .env file\n• HPA = auto-scaling group"
+        },
+        {
+          "type": "insight",
+          "title": "Rolling Updates & Rollbacks",
+          "content": "Update image v2.1 → v2.2:\nkubectl set image deployment/api api=myapp:v2.2\n\n1. K8s creates 1 new pod (v2.2)\n2. Waits for health check pass\n3. Terminates 1 old pod (v2.1)\n4. Repeats until complete\n\nService NEVER goes down. Traffic smoothly shifts.\n\nIf v2.2 fails health checks: rollout stops, old pods keep serving.\n\nRollback: kubectl rollout undo deployment/api → seconds.\n\nAdvanced:\n• CANARY: 5% traffic to v2.2, monitor, gradually increase\n• BLUE-GREEN: Run both simultaneously, switch instantly",
+          "analogy": "<b>Tech analogy:</b> Rolling updates = feature flags at infrastructure level. Toggle which version handles traffic. Both give gradual rollout and instant rollback."
+        },
+        {
+          "type": "quiz",
+          "q": "Deployment has 5 replicas. resources.requests.cpu='500m' but no limits. One pod uses 4 full CPUs, starving others. Fix?",
+          "opts": [
+            "Add more nodes",
+            "Set resources.limits.cpu='1000m' — requests are guaranteed minimum, limits are the hard ceiling",
+            "Reduce replicas",
+            "Remove resource requests"
+          ],
+          "ans": 1,
+          "explanation": "Requests = guaranteed minimum (scheduler uses this). Limits = hard maximum (kernel enforces via cgroups). Without limits, a pod can consume ALL node CPU. Setting limits.cpu='1000m' caps each pod at 1 core. Always set both in production."
+        }
+      ]
+    },
+    {
+      "id": "dv3",
+      "title": "3. CI/CD Pipelines",
+      "icon": "🔄",
+      "tagLabel": "Automation",
+      "sections": [
+        {
+          "type": "scenario",
+          "title": "The 47-Step Deploy Checklist",
+          "content": "Deploy process: a 47-step Google Doc. Last week step 23 was skipped. Wrong database migration hit production. Recovery: 6 hours.\n\nCI/CD automates ALL of this. Git push triggers the entire pipeline. No human steps, no missed items."
+        },
+        {
+          "type": "visual",
+          "title": "See It: The CI/CD Pipeline",
+          "vis": "cicd_pipeline",
+          "content": "CI (Continuous Integration):\n1. CHECKOUT → 2. BUILD → 3. TEST → 4. SCAN → 5. PACKAGE\n\nCD (Continuous Delivery):\n6. DEPLOY STAGING → 7. E2E TESTS → 8. APPROVAL → 9. DEPLOY PROD → 10. VERIFY → 11. NOTIFY\n\nIf ANY step fails, pipeline stops. No broken code reaches production."
+        },
+        {
+          "type": "concept",
+          "title": "GitHub Actions: Pipeline as Code",
+          "content": "# .github/workflows/deploy.yml\non:\n  push: { branches: [main] }\n  pull_request: { branches: [main] }\n\njobs:\n  test:\n    runs-on: ubuntu-latest\n    steps:\n    - uses: actions/checkout@v4\n    - run: pip install -r requirements.txt\n    - run: pytest --cov=app tests/\n\n  build:\n    needs: test\n    steps:\n    - uses: docker/build-push-action@v5\n      with: { push: true, tags: 'ghcr.io/myorg/myapp:${{ github.sha }}' }\n\n  deploy:\n    needs: build\n    if: github.ref == 'refs/heads/main'\n    steps:\n    - run: kubectl set image deploy/api api=ghcr.io/myorg/myapp:${{ github.sha }}\n\nPatterns: PR builds (test), Main builds (test+build+deploy), Tag builds (production only).",
+          "analogy": "<b>Tech analogy:</b> CI/CD pipeline = Makefile for delivery:\n• make test = CI test stage\n• make build = CI build stage\n• make deploy = CD deploy stage\nBut cloud-hosted, on every commit, with parallelism and caching."
+        },
+        {
+          "type": "insight",
+          "title": "Testing Strategy in CI",
+          "content": "Test pyramid:\n\nUNIT (base): Individual functions. Seconds. Every commit.\nINTEGRATION (middle): Components together (API+DB). Minutes. Every PR.\nE2E (top): Full user workflows. 5-15 min. After staging deploy.\n\nPipeline speed target: <10 minutes.\n\nSpeed tactics:\n• Parallel test execution\n• Dependency caching\n• Incremental testing (only affected tests)\n• Fail fast (lint + unit first)"
+        },
+        {
+          "type": "quiz",
+          "q": "CI takes 38 minutes. 20 commits/day. Developers merge without waiting for results. Fix?",
+          "opts": [
+            "Hire QA team",
+            "Parallelize + cache to get under 10 minutes, and enforce branch protection (block merges until CI passes)",
+            "Remove slow tests",
+            "Let devs bypass for 'small' changes"
+          ],
+          "ans": 1,
+          "explanation": "38 minutes breaks feedback loop. Fix: (1) Speed up CI via parallelism, caching, fast-tests-first. Target <10 min. (2) Branch protection blocks merges until CI passes. No exceptions — 'small' changes often break things."
+        }
+      ]
+    },
+    {
+      "id": "dv4",
+      "title": "4. Infrastructure as Code (Terraform)",
+      "icon": "🏗️",
+      "tagLabel": "IaC",
+      "sections": [
+        {
+          "type": "scenario",
+          "title": "The Snowflake Server",
+          "content": "Production server set up 2 years ago. Nobody documented it. Manually patched dozens of times.\n\nNow you need identical staging:\n• 'Which security group rules were added manually?'\n• 'Which nginx version?'\n• 'Why is there an unrecognized cron job?'\n\nThis server is a SNOWFLAKE — unique, irreproducible. IaC replaces snowflakes with CATTLE: identical, disposable infrastructure in code."
+        },
+        {
+          "type": "visual",
+          "title": "See It: Terraform Workflow",
+          "vis": "terraform_flow",
+          "content": "1. WRITE: Define infrastructure in .tf files\n2. PLAN: terraform plan shows what WILL change\n3. APPLY: terraform apply executes the plan\n4. STATE: Terraform tracks what exists\n\nNext run: compares desired (code) vs actual (state). Only changes what's different.\n\nWhen state drifts (manual change), the cycle detects and corrects it."
+        },
+        {
+          "type": "concept",
+          "title": "Terraform Core Concepts",
+          "content": "PROVIDERS: Plugins for cloud APIs.\nprovider \"aws\" { region = \"us-east-1\" }\nOne config can manage AWS + GCP + Cloudflare simultaneously.\n\nRESOURCES:\nresource \"aws_vpc\" \"main\" { cidr_block = \"10.0.0.0/16\" }\nresource \"aws_subnet\" \"public\" { vpc_id = aws_vpc.main.id }\nReferences create implicit dependency graph.\n\nMODULES: Reusable packages.\nmodule \"vpc\" { source = \"terraform-aws-modules/vpc/aws\" }\n\nSTATE:\n• Local: terraform.tfstate (learning)\n• Remote: S3 + DynamoDB locking (teams, required)\n\nVARIABLES + OUTPUTS: Parameterize and expose values.",
+          "analogy": "<b>Tech analogy:</b> Terraform = package manager for infrastructure:\n• .tf files = package.json\n• terraform plan = npm install --dry-run\n• terraform apply = npm install\n• State = node_modules\n• Modules = npm packages\n• Providers = registries"
+        },
+        {
+          "type": "insight",
+          "title": "Immutable Infrastructure",
+          "content": "Traditional (mutable): SSH in, install updates, change configs. Servers drift.\n\nModern (immutable): Never change running servers.\n1. Build new image with update\n2. Deploy new instances\n3. Shift traffic\n4. Terminate old instances\n\nBenefits: No drift, instant rollback, easy scaling, clean security patching.\n\nContainers are the extreme: image IS the artifact. Never 'update' — replace."
+        },
+        {
+          "type": "quiz",
+          "q": "Two engineers run terraform apply simultaneously. A adds a server, B changes a security group. Without remote state locking, what happens?",
+          "opts": [
+            "Both apply cleanly",
+            "State corruption — both read same state, make changes, second write overwrites first's state entries. Terraform loses track of resources",
+            "Terraform merges automatically",
+            "Second apply waits"
+          ],
+          "ans": 1,
+          "explanation": "Classic race condition. Both read state at time T, compute changes independently, write back. Second overwrites first's entries. Terraform's state doesn't match reality. Fix: remote state with locking (S3 + DynamoDB). Second apply blocks until first completes."
+        }
+      ]
+    },
+    {
+      "id": "dv5",
+      "title": "5. Observability & Monitoring",
+      "icon": "🔍",
+      "tagLabel": "Operations",
+      "sections": [
+        {
+          "type": "scenario",
+          "title": "The Silent Failure",
+          "content": "Users: 'The app is slow.' You: 'Everything looks fine.'\n\nCPU: 40%. Memory: 60%. Health check: 200 OK.\n\nBut users experience 5-second loads. After 2 hours: a downstream payment API responds in 4.8s instead of 200ms. Your health check doesn't test payments. Monitoring watches infrastructure, not user experience.\n\nMONITORING: Are servers up?\nOBSERVABILITY: Can I understand what the system is doing?"
+        },
+        {
+          "type": "visual",
+          "title": "See It: Three Pillars of Observability",
+          "vis": "observability_pillars",
+          "content": "METRICS: Numbers over time.\nrequest_count, error_rate, latency_p99\nTools: Prometheus, Datadog. Best for: dashboards, alerts.\n\nLOGS: Timestamped event records.\n'ERROR PaymentService: timeout 5000ms'\nTools: ELK, Loki. Best for: debugging incidents.\n\nTRACES: End-to-end request journey.\nFrontend (50ms) → API (20ms) → Payment (4800ms!) → DB (10ms)\nTools: Jaeger, Zipkin. Best for: finding bottlenecks."
+        },
+        {
+          "type": "concept",
+          "title": "Alerting That Works",
+          "content": "Bad: 'CPU > 80%' — triggers at 2 AM, back to normal. False alarm.\n\nGood: Alert on SYMPTOMS, not causes:\n• 'Error rate > 1% for 5 min' (users affected)\n• 'P99 latency > 2s for 10 min' (experience degraded)\n• 'Payment success < 95%' (revenue at risk)\n\nAlert design:\n1. ACTIONABLE: Something to DO when paged\n2. RELEVANT: User-facing symptoms\n3. TIMELY: Fast but not noisy\n4. CONTEXTUALIZED: Runbook link, dashboard, recent changes\n\nSeverity: P1=down, page now. P2=degraded, business hours. P3=ticket for next sprint.",
+          "analogy": "<b>Tech analogy:</b> Alerting = exception handling:\n• Bad: catch(Exception) { alert('something happened') }\n• Good: catch(PaymentTimeout) { alert('payments degraded', {runbook}) }"
+        },
+        {
+          "type": "insight",
+          "title": "SLOs, SLIs, and Error Budgets",
+          "content": "SLI: Measurable metric. (% requests returning non-5xx)\nSLO: Internal target. ('99.9% available' = 43 min downtime/month)\nERROR BUDGET: Allowed failure. 0.1% = 43 minutes.\n\nBudget remaining → Ship aggressively.\nBudget spent → STOP features. Focus reliability.\n\nThis resolves dev vs ops tension:\n• Devs: ship fast (risk)\n• Ops: stability (resist change)\n• Error budget: ship fast UNTIL reliability suffers\n\n99.9% = only 43 min/month. Each broken deploy eating 5 min = 12% of budget."
+        },
+        {
+          "type": "quiz",
+          "q": "SLO: 99.9%. Day 15, 80% of error budget used (34 of 43 min). Team wants a risky DB migration. Decision?",
+          "opts": [
+            "Ship it",
+            "Delay until budget resets — only 9 minutes left, a failed migration could breach the SLO",
+            "Ship with extra on-call",
+            "Ignore error budget"
+          ],
+          "ans": 1,
+          "explanation": "Only 9 minutes of budget remain. A failed migration could easily take 30+ minutes of downtime, breaching the SLO. Delay until budget resets. Use remaining time to make the migration safer (test staging, rollback scripts, maintenance window). Error budgets create a self-regulating system."
+        }
+      ]
+    },
+    {
+      "id": "dv6",
+      "title": "6. Cloud Architecture Patterns",
+      "icon": "🌐",
+      "tagLabel": "Architecture",
+      "sections": [
+        {
+          "type": "scenario",
+          "title": "Designing for Failure",
+          "content": "Architecture: one EC2, one RDS, one S3. All in us-east-1a.\n\nAWS outage in us-east-1a: entire app down 4 hours. Revenue loss: $50K.\n\nThe fix isn't hoping AWS stays up. It's DESIGNING for failure: assume every component WILL fail, build to survive it."
+        },
+        {
+          "type": "visual",
+          "title": "See It: Multi-AZ Architecture",
+          "vis": "cloud_arch",
+          "content": "Load Balancer (cross-AZ)\n├─ AZ-1a: App Server 1 + DB Primary\n├─ AZ-1b: App Server 2 + DB Replica\n└─ AZ-1c: App Server 3 + DB Replica\n\nIf AZ-1a fails: LB routes to 1b/1c (automatic). DB replica promoted (automatic). Users notice nothing."
+        },
+        {
+          "type": "concept",
+          "title": "Essential Cloud Patterns",
+          "content": "1. AUTO-SCALING: Min 2, Max 20. Scale on CPU >70%.\n\n2. CACHING: Redis in front of DB. Cache: 1ms. DB: 50ms. 50x faster.\n\n3. MESSAGE QUEUES: SQS between services. Handles spikes, retry on failure.\n\n4. CDN: CloudFront caches at 200+ locations. Tokyo user: 20ms vs 200ms.\n\n5. DATABASE PATTERNS:\n• Read replicas for read traffic\n• Connection pooling (RDS Proxy)\n• Sharding for massive scale\n\nRule: Use managed services (RDS, ECS, Lambda) unless you have specific reason not to.",
+          "analogy": "<b>Tech analogy:</b>\n• Auto-scaling = thread pool growing under load\n• Caching = memoization\n• Message queue = buffered channel\n• CDN = local cache\n• Read replicas = read-write lock"
+        },
+        {
+          "type": "insight",
+          "title": "Cost Optimization",
+          "content": "Quick wins:\n• RIGHT-SIZING: Most instances over-provisioned. Check CPU utilization.\n• RESERVED: 1-3 year commit = 30-60% discount for steady workloads.\n• SPOT: 60-90% discount for fault-tolerant batch/CI.\n• STORAGE TIERS: S3 Standard ($0.023/GB) → Glacier ($0.004/GB).\n• TURN THINGS OFF: Dev environments running 24/7, used 8 hours.\n\nServerless premium: Lambda costs more per compute-second but only charges for ACTUAL usage. Often cheaper for spiky workloads.\n\nTag EVERYTHING: team, project, environment. Answer 'which team costs $18K/month?'"
+        },
+        {
+          "type": "quiz",
+          "q": "10 t3.large instances 24/7. Average CPU: 15%. Team requests 10 more. Before approving?",
+          "opts": [
+            "Approve — team knows best",
+            "Right-size first: 15% CPU = 6x over-provisioned. Downsize to t3.small, then assess if more are needed",
+            "Reject — too many",
+            "Switch all to spot"
+          ],
+          "ans": 1,
+          "explanation": "15% CPU = massive over-provisioning. t3.large at 15% ≈ t3.small at 60%. Cost: $60/mo → $15/mo each = $450/mo savings before adding anything. Always right-size before scaling horizontally."
+        }
+      ]
+    }
+  ]
+}

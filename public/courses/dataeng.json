@@ -1,0 +1,310 @@
+{
+  "id": "dataeng",
+  "title": "Data Engineering",
+  "emoji": "🔧",
+  "tag": "Data",
+  "desc": "Build robust data pipelines, warehouses, and real-time streaming systems",
+  "modules": [
+    {
+      "id": "de0",
+      "title": "0. Data Pipeline Fundamentals",
+      "icon": "🏗️",
+      "tagLabel": "Foundation",
+      "sections": [
+        {
+          "type": "scenario",
+          "title": "The Pipeline Nobody Trusts",
+          "content": "Your company ingests data from 20 sources: APIs, databases, CSVs, event streams. Pipelines run as cron jobs. Problems:\n\n• Pipeline 7 failed silently 3 days ago. Nobody noticed.\n• The dashboard shows $2.3M revenue. Finance says $2.1M. Nobody knows which is right.\n• Adding a new data source takes 3 weeks of custom code.\n• When a pipeline fails at step 9 of 12, someone manually re-runs from step 7.\n\nData engineering is building RELIABLE, OBSERVABLE, SCALABLE systems to move and transform data."
+        },
+        {
+          "type": "visual",
+          "title": "See It: ETL vs ELT",
+          "vis": "de_etl_vs_elt",
+          "content": "ETL (Extract-Transform-Load): Traditional approach.\nExtract from source → Transform in a processing engine → Load into warehouse.\nTransform happens BEFORE loading. You must know the schema upfront.\n\nELT (Extract-Load-Transform): Modern approach.\nExtract from source → Load RAW into lake/warehouse → Transform using SQL/Spark.\nLoad everything first, transform later. Schema-on-read. More flexible.\n\nELT won because: cloud storage is cheap, compute is elastic, and business requirements change faster than schemas."
+        },
+        {
+          "type": "concept",
+          "title": "Batch vs Streaming vs Micro-Batch",
+          "content": "BATCH: Process data at scheduled intervals.\n• Run every hour/day. Process all new data since last run.\n• Simple, reliable, well-understood. Tools: Airflow + Spark, dbt.\n• Latency: minutes to hours. Acceptable for most analytics.\n\nSTREAMING: Process data as it arrives.\n• Sub-second latency. Real-time dashboards, fraud detection.\n• Complex: ordering, exactly-once semantics, state management.\n• Tools: Kafka + Flink, Spark Structured Streaming.\n\nMICRO-BATCH: Batch at very short intervals (seconds).\n• Spark Structured Streaming default: micro-batch every few seconds.\n• Simpler than true streaming, nearly as fast.\n• Good middle ground for 'near-real-time' needs.\n\nDecision framework:\n• Dashboard refreshes hourly? → Batch.\n• Fraud detection within 1 second? → Streaming.\n• 'Real-time' dashboard (30-second delay OK)? → Micro-batch.\n\n80% of data pipelines should be batch. Don't add streaming complexity unless latency requirements demand it.",
+          "analogy": "<b>Tech analogy:</b>\n• Batch = cron job (scheduled, processes accumulated work)\n• Micro-batch = setInterval at short intervals\n• Streaming = event listener (reacts immediately to each event)"
+        },
+        {
+          "type": "insight",
+          "title": "Idempotency: The Most Important Property",
+          "content": "An idempotent pipeline produces the SAME result whether you run it once or ten times.\n\nWhy this matters: Pipelines WILL fail. Networks drop. Machines crash. You WILL re-run pipelines. If re-running creates duplicates or corrupts data, you have a problem.\n\nMaking pipelines idempotent:\n\n1. UPSERT instead of INSERT:\n   MERGE INTO target USING source ON key = key\n   WHEN MATCHED THEN UPDATE\n   WHEN NOT MATCHED THEN INSERT\n   Re-running updates existing records instead of creating duplicates.\n\n2. OVERWRITE partitions instead of appending:\n   INSERT OVERWRITE TABLE sales PARTITION (date='2024-01-15')\n   Re-running replaces the entire partition.\n\n3. DEDUPLICATION with watermarks:\n   Track which data has been processed. On re-run, skip already-processed records.\n\n4. DETERMINISTIC processing:\n   Same input → same output. No random IDs, no wall-clock timestamps in logic.\n\nTest: If you run your pipeline 3 times in a row, do you get 3x the data? If yes, it's not idempotent.",
+          "analogy": "<b>Tech analogy:</b> Idempotent pipelines are like HTTP PUT vs POST.\n• PUT /resource/42 {data} — run it 10 times, resource 42 has the same data.\n• POST /resources {data} — run it 10 times, you have 10 copies.\nAlways design pipelines as PUT, not POST."
+        },
+        {
+          "type": "quiz",
+          "q": "Your daily pipeline appends new rows to a fact table. It fails halfway through January 15th's data. You re-run it. Now January 15th has duplicate rows. What's the root cause and fix?",
+          "opts": [
+            "The source data is wrong",
+            "The pipeline uses INSERT (append) instead of MERGE or OVERWRITE — it's not idempotent. Fix: use INSERT OVERWRITE PARTITION (date) or MERGE with a dedup key",
+            "The scheduler is broken",
+            "You need a larger database"
+          ],
+          "ans": 1,
+          "explanation": "INSERT appends without checking for existing data. Re-running appends again → duplicates. Fix: (1) INSERT OVERWRITE PARTITION replaces the entire day's partition on re-run. (2) MERGE with a primary key updates existing rows and inserts only new ones. (3) Add a dedup step: DELETE FROM table WHERE date = '2024-01-15' before INSERT. All three make the pipeline idempotent — safe to re-run."
+        }
+      ]
+    },
+    {
+      "id": "de1",
+      "title": "1. SQL & Data Modeling",
+      "icon": "📐",
+      "tagLabel": "Core",
+      "sections": [
+        {
+          "type": "scenario",
+          "title": "The Query That Takes 45 Minutes",
+          "content": "Analyst asks: 'What's the monthly revenue by product category for the last 2 years?'\n\nYour normalized OLTP schema: orders JOIN order_items JOIN products JOIN categories. The query scans 500M rows across 4 tables. It takes 45 minutes.\n\nThe same query on a properly modeled OLAP schema (star schema): one scan of a pre-joined fact table with dimension lookups. 8 seconds.\n\nData modeling isn't about normal forms. It's about designing schemas for how data is QUERIED."
+        },
+        {
+          "type": "visual",
+          "title": "See It: Star Schema",
+          "vis": "de_star_schema",
+          "content": "A star schema has two types of tables:\n\nFACT TABLE (center): Events that happened. Each row = one transaction.\nfact_orders: order_id, date_key, product_key, customer_key, amount, quantity\nMillions to billions of rows. Numeric measures.\n\nDIMENSION TABLES (points of the star): Descriptive attributes.\ndim_date: date_key, date, month, quarter, year, is_weekend\ndim_product: product_key, name, category, brand, price\ndim_customer: customer_key, name, segment, region\nThousands to millions of rows. Text attributes.\n\nQueries JOIN fact to dimensions:\nSELECT d.month, p.category, SUM(f.amount)\nFROM fact_orders f JOIN dim_date d ON f.date_key = d.date_key\nJOIN dim_product p ON f.product_key = p.product_key\nGROUP BY d.month, p.category"
+        },
+        {
+          "type": "concept",
+          "title": "Slowly Changing Dimensions (SCD)",
+          "content": "A customer moves from New York to London. What happens to historical reports?\n\nSCD TYPE 1 — Overwrite:\nUPDATE dim_customer SET city = 'London' WHERE id = 42\nPast reports now show 'London' for all historical orders. History is lost.\nUse when: You don't care about historical accuracy (e.g., fixing a typo).\n\nSCD TYPE 2 — Add new row:\nINSERT: id=42, city='London', valid_from='2024-06-01', valid_to='9999-12-31', is_current=true\nUPDATE old row: valid_to='2024-05-31', is_current=false\nHistorical reports show 'New York' for old orders, 'London' for new ones.\nUse when: Historical accuracy matters (most cases).\n\nSCD TYPE 3 — Add new column:\ncity_current = 'London', city_previous = 'New York'\nOnly tracks one change. Rarely used.\n\nSCD Type 2 is the most common and most important to understand. The valid_from/valid_to pattern enables point-in-time queries:\nSELECT * FROM dim_customer\nWHERE customer_id = 42 AND '2024-03-15' BETWEEN valid_from AND valid_to\n→ Returns the New York row (correct for March 2024).",
+          "analogy": "<b>Tech analogy:</b> SCD types mirror version control strategies:\n• Type 1 = git push --force (overwrite history)\n• Type 2 = git commit (preserve full history, latest is HEAD)\n• Type 3 = git stash (save one previous state)"
+        },
+        {
+          "type": "insight",
+          "title": "OLTP vs OLAP: Two Different Worlds",
+          "content": "OLTP (Online Transaction Processing):\nPurpose: Run the business. Process transactions.\nQueries: Point lookups. SELECT * FROM orders WHERE id = 12345\nSchema: Normalized (3NF). Minimize redundancy.\nRows: Millions. Each is small.\nOptimized for: Write speed, consistency, row-level operations.\nExamples: PostgreSQL, MySQL, Oracle.\n\nOLAP (Online Analytical Processing):\nPurpose: Analyze the business. Generate insights.\nQueries: Aggregations. SELECT category, SUM(revenue) GROUP BY category\nSchema: Denormalized (star/snowflake). Pre-joined for query speed.\nRows: Billions. Columnar storage.\nOptimized for: Read speed, scan throughput, column-level operations.\nExamples: BigQuery, Snowflake, Redshift, Databricks SQL.\n\nColumnar vs Row storage:\nRow store: [id=1, name='Alice', age=30] [id=2, name='Bob', age=25] ...\nColumn store: ids=[1,2,...] names=['Alice','Bob',...] ages=[30,25,...]\n\nQuery: SELECT AVG(age) FROM users\nRow store: Must read every column of every row. 90% of data read is wasted.\nColumn store: Only reads the 'age' column. 10x less I/O. Plus: same-type data compresses better (ages: 30,25,31,28 → delta encode).",
+          "analogy": "<b>Tech analogy:</b> Row vs Column storage is like array-of-structs vs struct-of-arrays.\n• Row = [{name,age,email}, {name,age,email}, ...] — good for accessing one complete record\n• Column = {names: [...], ages: [...], emails: [...]} — good for scanning one field across all records"
+        },
+        {
+          "type": "quiz",
+          "q": "Your fact_orders table has 2 billion rows. A query filtering WHERE product_category = 'Electronics' scans all 2B rows because product_category is in dim_product, not in fact_orders. How do you optimize?",
+          "opts": [
+            "Add product_category as a column in fact_orders (denormalize) so the filter can be applied directly without joining dim_product first",
+            "Add more RAM",
+            "Create an index on dim_product.category",
+            "Use a smaller date range"
+          ],
+          "ans": 0,
+          "explanation": "In OLAP, denormalization is the norm. Adding product_category directly to fact_orders means the query engine can filter 2B rows down to 200M (Electronics only) BEFORE joining dim_product for other attributes. This is a 10x reduction in join size. The tradeoff: storage increases slightly and you need to keep the denormalized column in sync. But storage is cheap and the query speedup is dramatic. This is why star schemas prioritize query performance over normalization."
+        }
+      ]
+    },
+    {
+      "id": "de2",
+      "title": "2. Apache Kafka & Streaming",
+      "icon": "🌊",
+      "tagLabel": "Streaming",
+      "sections": [
+        {
+          "type": "scenario",
+          "title": "When Batch Is Too Slow",
+          "content": "Your ride-sharing app updates surge pricing hourly via batch pipeline. But demand changes by the minute. At 5 PM, a concert ends and 50,000 people request rides simultaneously. Your hourly batch won't update prices for another 40 minutes. Riders see stale prices. Drivers don't know about the surge.\n\nYou need STREAMING: process events as they happen, not in batches."
+        },
+        {
+          "type": "visual",
+          "title": "See It: Kafka Architecture",
+          "vis": "de_kafka",
+          "content": "Kafka is a distributed event log:\n\nPRODUCERS write events to TOPICS.\nTopics are split into PARTITIONS (for parallelism).\nCONSUMERS read from partitions.\n\nKey insight: Kafka is an append-only LOG, not a queue. Messages are NOT deleted after consumption. Multiple consumers can read the same data independently.\n\nRetention: Keep messages for 7 days (or forever). New consumers can replay from any point in history."
+        },
+        {
+          "type": "concept",
+          "title": "Kafka Core Concepts",
+          "content": "TOPICS: Named channels for events.\ntopic: ride-requests, topic: driver-locations, topic: surge-updates\n\nPARTITIONS: Topics are split for parallelism.\nride-requests has 12 partitions. 12 consumers can read in parallel.\nMessages within a partition are ORDERED. Across partitions: no order guarantee.\n\nKEYS: Determine which partition a message goes to.\nkey=user_id ensures all events for one user go to the same partition → ordered per user.\n\nCONSUMER GROUPS: Multiple consumers sharing the load.\n3 consumers in group 'pricing-service' split 12 partitions: each reads 4.\nA different group 'analytics-service' reads ALL 12 partitions independently.\n\nOFFSETS: Position in the partition log.\nConsumer tracks: 'I've processed up to offset 42,387 in partition 5.'\nCrash and restart → resume from offset 42,388. No reprocessing.\n\nDELIVERY SEMANTICS:\n• At-most-once: Commit offset before processing. Fast but may lose data.\n• At-least-once: Process, then commit offset. Safe but may get duplicates. (Default)\n• Exactly-once: Kafka transactions. Complex but no loss and no duplicates.",
+          "analogy": "<b>Tech analogy:</b> Kafka is like a NEWSPAPER printing press:\n• Topics = newspaper sections (Sports, Business, Tech)\n• Partitions = printing presses running in parallel\n• Producers = journalists filing stories\n• Consumers = subscribers reading sections\n• Key insight: the press keeps a permanent archive. New subscribers can read ALL past issues."
+        },
+        {
+          "type": "insight",
+          "title": "Stream Processing Patterns",
+          "content": "FILTERING: Keep only relevant events.\nride-requests → filter(city='NYC') → nyc-ride-requests\n\nTRANSFORMATION: Enrich or reshape events.\nride-request + driver-location → ride-with-eta\n\nAGGREGATION: Compute over time windows.\n'Average surge multiplier in the last 5 minutes per zone.'\nWindow types:\n• TUMBLING: Fixed, non-overlapping. [0:00-0:05], [0:05-0:10]\n• SLIDING: Fixed, overlapping. Every event triggers a window of last 5 min.\n• SESSION: Dynamic, gap-based. Window closes after 30 min of inactivity.\n\nJOIN: Combine two streams.\nride-requests JOIN driver-locations ON zone within 5-minute window.\n\nLATE ARRIVALS: A ride request from 2 minutes ago arrives now (network delay). How do you handle it?\nWATERMARK: 'I expect all events within a 3-minute delay. After that, drop or send to a late-arrivals topic.'\nTrade-off: Longer watermark → more complete but higher latency.",
+          "analogy": "<b>Tech analogy:</b> Stream processing windows are like database GROUP BY with a time dimension:\n• Tumbling = GROUP BY FLOOR(timestamp / interval)\n• Sliding = GROUP BY each timestamp with a RANGE window\n• Session = GROUP BY user with a timeout gap"
+        },
+        {
+          "type": "quiz",
+          "q": "Your Kafka topic has 6 partitions. You deploy 8 consumers in the same consumer group. What happens?",
+          "opts": [
+            "All 8 consume in parallel",
+            "6 consumers each get 1 partition. 2 consumers sit IDLE — in a consumer group, each partition is assigned to exactly one consumer. More consumers than partitions means wasted resources",
+            "Messages are duplicated across consumers",
+            "Kafka rejects the extra consumers"
+          ],
+          "ans": 1,
+          "explanation": "Kafka's consumer group protocol assigns each partition to exactly one consumer. With 6 partitions and 8 consumers, 6 consumers each get 1 partition and 2 are idle (no partitions to read). To scale beyond 6 consumers, you need more partitions. Rule: max parallelism = number of partitions. Plan partition count for peak consumer needs. Note: you CAN have fewer consumers than partitions (each consumer handles multiple partitions)."
+        }
+      ]
+    },
+    {
+      "id": "de3",
+      "title": "3. Orchestration with Airflow",
+      "icon": "🎼",
+      "tagLabel": "Orchestration",
+      "sections": [
+        {
+          "type": "scenario",
+          "title": "The Cron Job Graveyard",
+          "content": "Your data team has 47 cron jobs running on 3 different machines. Some depend on each other but there's no dependency management. Cron job 12 runs at 3 AM but depends on cron job 8 which runs at 2:30 AM — usually finishes by 3 AM, but on Mondays it takes 90 minutes.\n\nMonday mornings: job 12 processes stale data. Dashboard is wrong until someone notices and manually reruns.\n\nYou need an ORCHESTRATOR: define dependencies, handle failures, retry automatically, and provide visibility into what's running."
+        },
+        {
+          "type": "visual",
+          "title": "See It: Airflow DAG",
+          "vis": "de_airflow_dag",
+          "content": "Airflow uses DAGs (Directed Acyclic Graphs) to define pipelines:\n\nextract_orders → clean_orders → load_orders_silver → ↘\nextract_users → clean_users → load_users_silver → → build_gold_revenue\nextract_products → clean_products → load_products_silver → ↗\n\nEach node is a TASK. Arrows are DEPENDENCIES.\nAirflow runs tasks in dependency order. If extract_orders fails, nothing downstream runs.\nBuilt-in: retries, alerts, backfill, monitoring UI."
+        },
+        {
+          "type": "concept",
+          "title": "Airflow Core Concepts",
+          "content": "DAG: A Python file defining the pipeline structure.\nfrom airflow import DAG\nfrom airflow.operators.python import PythonOperator\n\nwith DAG('daily_revenue', schedule='@daily', start_date=datetime(2024,1,1), catchup=False):\n  extract = PythonOperator(task_id='extract', python_callable=extract_fn)\n  transform = PythonOperator(task_id='transform', python_callable=transform_fn)\n  load = PythonOperator(task_id='load', python_callable=load_fn)\n  extract >> transform >> load  # dependency chain\n\nOPERATORS: Types of tasks.\n• PythonOperator: Run a Python function\n• BashOperator: Run a shell command\n• SparkSubmitOperator: Submit a Spark job\n• SqlOperator: Execute SQL\n\nSCHEDULE: When the DAG runs.\n@daily, @hourly, '0 3 * * *' (cron), or triggered externally.\n\nBACKFILL: Re-run historical dates.\nairflow dags backfill --start-date 2024-01-01 --end-date 2024-01-31\nRe-processes all of January. Each run gets its execution_date for idempotency.\n\nXCOM: Pass small data between tasks.\nextract pushes output path → transform pulls it.\nNOT for large datasets. Use files/tables for data, XCom for metadata.",
+          "analogy": "<b>Tech analogy:</b> Airflow is a CI/CD system for data:\n• DAG = pipeline YAML file\n• Tasks = pipeline stages\n• Schedule = trigger (cron, on push)\n• Backfill = re-running historical builds\n• XCom = pipeline artifacts/outputs"
+        },
+        {
+          "type": "insight",
+          "title": "Modern Orchestration Alternatives",
+          "content": "AIRFLOW: The established standard. 10+ years. Massive ecosystem.\nPros: Battle-tested, huge community, tons of operators.\nCons: Complex setup, DAGs as Python code can be messy, scheduler bottleneck.\n\nDAGSTER: Software-defined data assets.\nDefine WHAT (assets), not HOW (tasks). Focuses on data lineage.\nPros: Better testing, type system, development experience.\nCons: Smaller ecosystem, newer.\n\nPREFECT: Dynamic, Pythonic workflows.\nPros: No DAG files needed, dynamic task creation, cloud-native.\nCons: Less mature ecosystem.\n\nMAGE: Modern, notebook-like interface.\nPros: Developer-friendly, built-in data integration.\nCons: Newest, smallest community.\n\nDATABRICKS WORKFLOWS / dbt Cloud:\nManaged orchestration within their ecosystems.\nPros: Zero infrastructure. Tight integration.\nCons: Vendor lock-in.\n\nChoosing:\n• Enterprise with existing Airflow → stay with Airflow.\n• Greenfield project → consider Dagster or Prefect.\n• Databricks-heavy → Databricks Workflows.\n• SQL-heavy transforms → dbt Cloud.",
+          "analogy": "<b>Tech analogy:</b> Orchestrator evolution mirrors CI/CD evolution:\n• Airflow = Jenkins (powerful, configurable, complex)\n• Dagster = GitHub Actions (declarative, integrated)\n• Prefect = CircleCI (cloud-native, simple)\n• dbt Cloud = Vercel (specialized, managed)"
+        },
+        {
+          "type": "quiz",
+          "q": "Your Airflow DAG runs daily at 3 AM. The extract task takes 10 minutes usually but occasionally takes 2 hours (API rate limiting). The transform task starts at 3:10 AM regardless. What breaks?",
+          "opts": [
+            "Nothing — Airflow handles it",
+            "If extract is still running at 3:10, Airflow does NOT start transform because transform depends on extract — Airflow respects dependencies. But the NEXT day's DAG run might start at 3 AM while yesterday's is still running. Fix: set max_active_runs=1 and appropriate timeouts",
+            "Transform runs on stale data",
+            "Airflow crashes"
+          ],
+          "ans": 1,
+          "explanation": "Airflow respects task dependencies — transform waits for extract. But without max_active_runs=1, the next day's DAG run can start while yesterday's is still in progress. Two runs of the same pipeline running simultaneously can cause race conditions (writing to the same table). Also set execution_timeout on tasks to catch runaway jobs, and configure SLA alerts to notify when extract takes longer than expected."
+        }
+      ]
+    },
+    {
+      "id": "de4",
+      "title": "4. dbt & Transformations",
+      "icon": "🔨",
+      "tagLabel": "Transforms",
+      "sections": [
+        {
+          "type": "scenario",
+          "title": "1,200 Lines of SQL Nobody Understands",
+          "content": "Your Gold layer is built by one massive SQL query: 1,200 lines, 14 CTEs, 8 JOINs, nested subqueries. It was written by someone who left. It takes 45 minutes to run. When it breaks, nobody can debug it.\n\nWorse: three other queries copy-paste the same customer logic (each with slight variations). When the customer definition changes, you update one but miss the others.\n\ndbt (data build tool) solves this: modular SQL models with dependency management, testing, and documentation."
+        },
+        {
+          "type": "visual",
+          "title": "See It: dbt Model Dependency Graph",
+          "vis": "de_dbt_dag",
+          "content": "dbt builds a DAG from SQL model files:\n\nstg_orders.sql → int_orders_enriched.sql → ↘\nstg_customers.sql → int_customer_metrics.sql → → mart_revenue.sql\nstg_products.sql → ↗\n\nEach .sql file is a SELECT statement. dbt handles the CREATE TABLE / INSERT.\nRef other models: SELECT * FROM {{ ref('stg_orders') }}\ndbt builds them in dependency order automatically."
+        },
+        {
+          "type": "concept",
+          "title": "dbt Project Structure",
+          "content": "STAGING MODELS (stg_): 1:1 with source tables. Rename columns, cast types.\n-- models/staging/stg_orders.sql\nSELECT\n  id AS order_id,\n  created_at::timestamp AS ordered_at,\n  amount::decimal(10,2) AS order_amount,\n  user_id AS customer_id\nFROM {{ source('raw', 'orders') }}\n\nINTERMEDIATE MODELS (int_): Business logic. Joins, enrichment.\n-- models/intermediate/int_orders_enriched.sql\nSELECT o.*, c.segment, c.region\nFROM {{ ref('stg_orders') }} o\nJOIN {{ ref('stg_customers') }} c ON o.customer_id = c.customer_id\n\nMART MODELS (mart_): Final tables consumed by BI tools.\n-- models/marts/mart_revenue.sql\nSELECT date_trunc('month', ordered_at) AS month,\n  region, segment, SUM(order_amount) AS revenue\nFROM {{ ref('int_orders_enriched') }}\nGROUP BY 1, 2, 3\n\nTESTING:\n-- tests on stg_orders:\n- unique: order_id\n- not_null: [order_id, customer_id, order_amount]\n- accepted_values: { column: status, values: ['pending','completed','cancelled'] }\n- relationships: { to: ref('stg_customers'), field: customer_id }\n\ndbt test runs ALL tests. Catch data quality issues before they reach dashboards.",
+          "analogy": "<b>Tech analogy:</b> dbt is a BUILD SYSTEM for SQL:\n• Models = source files\n• ref() = import statements\n• dbt run = compile + execute\n• dbt test = unit tests\n• Lineage graph = module dependency tree\n• Staging/intermediate/marts = src/lib/dist"
+        },
+        {
+          "type": "insight",
+          "title": "Materialization Strategies",
+          "content": "How dbt creates the output table:\n\nVIEW (default): CREATE VIEW. No data stored. Computed on query.\nPros: Always fresh. No storage cost.\nCons: Slow for complex logic (recomputed every time).\nUse for: Staging models, simple transforms.\n\nTABLE: CREATE TABLE AS SELECT. Data materialized.\nPros: Fast reads (pre-computed).\nCons: Stale between runs. Full rebuild every time.\nUse for: Mart models queried frequently.\n\nINCREMENTAL: Only process NEW data since last run.\n{{ config(materialized='incremental', unique_key='order_id') }}\nSELECT * FROM {{ ref('stg_orders') }}\n{% if is_incremental() %}\nWHERE ordered_at > (SELECT MAX(ordered_at) FROM {{ this }})\n{% endif %}\n\nFirst run: Full table. Subsequent runs: Only new rows.\nPros: Fast for large tables (process 1 day, not 3 years).\nCons: Complex. Must handle late arrivals, schema changes.\nUse for: Large fact tables with append-mostly data.\n\nEPHEMERAL: Not materialized at all. Inlined as CTE in downstream models.\nUse for: Simple helper transforms used in one place.",
+          "analogy": "<b>Tech analogy:</b> Materializations mirror caching strategies:\n• View = no cache (compute on every request)\n• Table = full cache rebuild (invalidate + recompute entirely)\n• Incremental = cache with delta updates (only refresh what changed)\n• Ephemeral = inline code (no separate artifact)"
+        },
+        {
+          "type": "quiz",
+          "q": "Your incremental model processes orders by ordered_at. An order from 3 days ago arrives late (source system delay). Your incremental model only looks at rows WHERE ordered_at > max(ordered_at). The late order is missed. Fix?",
+          "opts": [
+            "Switch to full table rebuild",
+            "Use a lookback window: WHERE ordered_at > max(ordered_at) - INTERVAL '3 days'. Re-process the last 3 days on every run to catch late arrivals, with MERGE to prevent duplicates",
+            "Increase Airflow retries",
+            "Add an index on ordered_at"
+          ],
+          "ans": 1,
+          "explanation": "Late-arriving data is the most common incremental model bug. Fix: add a lookback window that re-processes the last N days (where N = your maximum expected delay). Combined with unique_key in the incremental config, dbt uses MERGE to upsert — existing rows are updated, new rows are inserted, no duplicates. The cost: re-processing 3 days of data instead of 1 day. For most tables, this is a small price for correctness."
+        }
+      ]
+    },
+    {
+      "id": "de5",
+      "title": "5. Data Quality & Testing",
+      "icon": "✅",
+      "tagLabel": "Quality",
+      "sections": [
+        {
+          "type": "scenario",
+          "title": "The $2M Dashboard Mistake",
+          "content": "The revenue dashboard shows $4.7M for Q4. The CEO presents this to the board. Finance finds the real number is $2.5M — a pipeline silently double-counted transactions from a source system migration.\n\nNobody caught it because there were no data quality checks. No anomaly detection. No reconciliation against the source. The dashboard was trusted because it existed, not because it was verified."
+        },
+        {
+          "type": "visual",
+          "title": "See It: Data Quality Dimensions",
+          "vis": "de_data_quality",
+          "content": "Six dimensions of data quality:\n\nCOMPLETENESS: Are all expected records present? (No missing days)\nUNIQUENESS: No duplicate records? (Primary key is unique)\nVALIDITY: Values within expected ranges? (Age between 0-150)\nACCURACY: Values match reality? (Revenue matches finance system)\nTIMELINESS: Data is fresh enough? (Dashboard reflects yesterday's data)\nCONSISTENCY: Same fact gives same answer everywhere? (Revenue matches across reports)"
+        },
+        {
+          "type": "concept",
+          "title": "Testing at Every Layer",
+          "content": "SCHEMA TESTS (every run):\n• Not null: Critical columns always have values\n• Unique: Primary keys are truly unique\n• Accepted values: Status IN ('active','inactive','pending')\n• Relationships: Every order.customer_id exists in customers\nTools: dbt tests, Great Expectations.\n\nVOLUME TESTS (every run):\n• Row count within expected range (yesterday ±20%)\n• No missing dates in date-partitioned tables\n• Source-to-target reconciliation (source count = target count)\n\nANOMALY DETECTION (daily):\n• Revenue today vs 7-day average. Alert if >50% deviation.\n• NULL rate spike (0.1% → 15% = something broke upstream)\n• Cardinality changes (suddenly 500 new product categories?)\n\nCROSS-SYSTEM RECONCILIATION (weekly):\n• Sum(revenue) in warehouse = Sum(revenue) in finance system\n• User count in analytics = User count in production DB\n• If they differ: investigation, not panic.\n\nFRESHNESS CHECKS (continuous):\n• 'Silver customers table was last updated 2 hours ago. Expected: hourly.'\n• Alert if data is staler than SLA.",
+          "analogy": "<b>Tech analogy:</b> Data testing mirrors software testing:\n• Schema tests = type checking (compile-time guarantees)\n• Volume tests = smoke tests (does it roughly work?)\n• Anomaly detection = performance monitoring (catch regressions)\n• Reconciliation = integration tests (components agree)\n• Freshness = uptime monitoring (system is responsive)"
+        },
+        {
+          "type": "insight",
+          "title": "Great Expectations & Data Contracts",
+          "content": "GREAT EXPECTATIONS: Python framework for data validation.\nimport great_expectations as gx\nvalidator = gx.read_csv('orders.csv')\nvalidator.expect_column_values_to_not_be_null('order_id')\nvalidator.expect_column_values_to_be_between('amount', 0, 100000)\nvalidator.expect_column_pair_values_to_be_unique(['order_id', 'line_item'])\nresults = validator.validate()\n\nDATA CONTRACTS: Formal agreements between producers and consumers.\n\nProducer (payments team) guarantees:\n• Schema: {payment_id: string, amount: decimal, currency: enum(USD,EUR,GBP)}\n• Freshness: Updated within 1 hour\n• Volume: 10K-500K records/day\n• Quality: amount > 0, no nulls in payment_id\n\nConsumer (analytics team) depends on these guarantees.\n\nIf the producer changes the schema or violates quality guarantees → contract violation → alert BEFORE downstream dashboards break.\n\nThis shifts quality LEFT — catch issues at the source, not when the CEO sees wrong numbers.",
+          "analogy": "<b>Tech analogy:</b> Data contracts are like API contracts (OpenAPI specs):\n• Schema = request/response schema\n• Freshness SLA = latency SLA\n• Volume = rate limits\n• Quality = validation rules\nBoth prevent breaking changes from propagating to consumers."
+        },
+        {
+          "type": "quiz",
+          "q": "Your daily pipeline loads 100K orders/day. One day it loads 250K. No errors in logs. The data looks normal. What happened and how should your quality system catch this?",
+          "opts": [
+            "Nothing — more orders is good",
+            "Likely a duplicate load or source system sent historical backfill. A volume anomaly test (row count vs 7-day average, alert if >2x deviation) would catch this automatically before data reaches dashboards",
+            "The database grew",
+            "Increase pipeline capacity"
+          ],
+          "ans": 1,
+          "explanation": "2.5x the normal volume is almost certainly not organic growth in one day. Common causes: (1) Source system sent a backfill of historical data mixed with today's data. (2) Pipeline ran twice (not idempotent). (3) A schema change caused row explosion in a JOIN. A volume test comparing today's count against the rolling average (±50% threshold) would immediately flag this. Combined with a dedup check on primary keys, you'd know whether it's duplicates or genuinely new data. Catch it before it hits dashboards."
+        }
+      ]
+    },
+    {
+      "id": "de6",
+      "title": "6. Data Infrastructure & Cost",
+      "icon": "💰",
+      "tagLabel": "Operations",
+      "sections": [
+        {
+          "type": "scenario",
+          "title": "The $80K Monthly Cloud Bill",
+          "content": "Your data team's cloud bill: $80K/month. Breakdown:\n• $30K: Spark clusters running 24/7 (utilized 4 hours/day)\n• $20K: Snowflake warehouse running queries 8 hours/day\n• $15K: Data stored in S3 Standard (70% not accessed in 6 months)\n• $15K: Various services, untagged, unknown owners\n\nThe CTO asks: 'Can we get this under $40K without losing capability?' The answer is yes."
+        },
+        {
+          "type": "visual",
+          "title": "See It: Cost Optimization Layers",
+          "vis": "de_cost_optimization",
+          "content": "Four layers of cost optimization:\n\nCOMPUTE: Right-size, auto-terminate, spot instances\nSTORAGE: Tiering, compression, lifecycle policies\nQUERY: Partition pruning, caching, materialization\nGOVERNANCE: Tagging, ownership, budget alerts\n\nTypically 40-60% savings achievable without losing any capability."
+        },
+        {
+          "type": "concept",
+          "title": "Compute & Storage Optimization",
+          "content": "COMPUTE:\n• AUTO-TERMINATE clusters after idle timeout (15-30 min)\n  $30K/month running 24/7 → $5K running only during jobs\n• SPOT/PREEMPTIBLE instances for batch jobs: 60-80% cheaper\n• RIGHT-SIZE: Monitor CPU/memory utilization. Downsize over-provisioned clusters.\n• SERVERLESS where possible: Pay per query, not per hour.\n\nSTORAGE:\n• LIFECYCLE POLICIES: Move data not accessed in 30 days to cold storage.\n  S3 Standard: $0.023/GB → S3 Glacier: $0.004/GB (6x cheaper)\n• COMPRESSION: Parquet + Snappy compression = 80% smaller than CSV\n  1 TB CSV → 200 GB Parquet. Storage cost: $23 → $4.60\n• PARTITIONING: Queries scan only relevant partitions, reducing compute cost.\n  SELECT FROM orders WHERE date = '2024-01-15' scans 1 day, not 3 years.\n• VACUUM / COMPACT: Remove old Delta Lake versions. Compact small files.\n\nQUERY OPTIMIZATION:\n• MATERIALIZED VIEWS: Pre-compute expensive aggregations.\n• RESULT CACHING: Identical queries return cached results.\n• QUERY GOVERNANCE: Kill queries running longer than 30 minutes.\n  Often a missing WHERE clause scanning the entire table.\n\nThe biggest single savings: auto-terminating idle clusters. Most teams leave them running 24/7 but use them <8 hours.",
+          "analogy": "<b>Tech analogy:</b> Data cost optimization mirrors application cost optimization:\n• Auto-terminate = serverless functions (pay for execution time only)\n• Storage tiering = CDN vs origin (frequently accessed = fast storage, archival = cheap storage)\n• Query optimization = database query optimization (index, partition, cache)\n• Governance = resource quotas in Kubernetes"
+        },
+        {
+          "type": "insight",
+          "title": "Building a Cost-Aware Culture",
+          "content": "Technical fixes are necessary but not sufficient. You need a CULTURE where cost is visible.\n\nTAG EVERYTHING: Every resource tagged with: team, project, environment.\n• Team: 'data-engineering', 'ml-platform', 'analytics'\n• Project: 'customer-360', 'fraud-detection'\n• Environment: 'prod', 'staging', 'dev'\n\nCOST DASHBOARDS: Weekly email/Slack showing each team's spend vs budget.\n'ML Platform: $12,400 this week (budget: $15,000). Top cost: GPU training cluster.'\n\nSHOWBACK / CHARGEBACK:\n• Showback: 'Your team's Snowflake credits cost $8,200 this month.' (informational)\n• Chargeback: That $8,200 comes out of your team's budget. (real consequences)\nChargeback drives behavior change. Showback creates awareness.\n\nFINOPS PRACTICES:\n• Monthly cost review with engineering leads\n• Anomaly alerts: 'Daily spend jumped 40% vs last week'\n• Pre-approval for resources over $X/month\n• Quarterly optimization sprints: review and right-size everything",
+          "analogy": "<b>Tech analogy:</b> FinOps is like performance engineering for money:\n• Cost dashboards = performance monitoring\n• Tagging = distributed tracing (attribute cost to source)\n• Budget alerts = latency alerts\n• Right-sizing = performance optimization\n• Chargeback = SLOs (accountability for resource consumption)"
+        },
+        {
+          "type": "quiz",
+          "q": "Your Snowflake warehouse runs 24/7 at 'Large' size but is only queried 9 AM-5 PM on weekdays. What's the simplest optimization?",
+          "opts": [
+            "Move to a different cloud",
+            "Enable auto-suspend (pause after 5 min idle) and auto-resume (restart on query). This alone cuts costs by ~75% since the warehouse runs 40 hours/week instead of 168",
+            "Reduce the warehouse size",
+            "Cache all query results"
+          ],
+          "ans": 1,
+          "explanation": "Auto-suspend + auto-resume is the single biggest cost lever for Snowflake (and similar). Active 40 hours/week instead of 168 = 76% cost reduction. The warehouse pauses within minutes of idle and restarts in seconds when a query arrives. Users experience a 1-2 second cold start on the first query after resume — barely noticeable. Combine with right-sizing (if average CPU is <30%, downsize) and multi-cluster scaling (auto-scale on concurrency rather than keeping one big warehouse) for additional savings."
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,310 @@
+{
+  "id": "genai",
+  "title": "Generative AI",
+  "emoji": "🤖",
+  "tag": "AI/ML",
+  "desc": "Master LLMs, prompt engineering, RAG, fine-tuning, and AI agents",
+  "modules": [
+    {
+      "id": "m0",
+      "title": "0. Why Generative AI Changes Everything",
+      "icon": "🌍",
+      "tagLabel": "Foundation",
+      "sections": [
+        {
+          "type": "scenario",
+          "title": "The Problem You Already Face",
+          "content": "You're a software engineer. Every day you write boilerplate code, draft documentation, answer repetitive questions, and translate requirements into implementations.\n\nWhat if a system could generate working code from natural language, write docs by reading your codebase, and answer user questions by understanding your product?\n\nThis isn't hypothetical — it's what LLMs do TODAY. But understanding HOW they work (and when they fail) separates engineers who use AI effectively from those who get burned."
+        },
+        {
+          "type": "visual",
+          "title": "See It: The Evolution of AI",
+          "vis": "genai_evolution",
+          "content": "Each wave built on the previous. Classical ML needed hand-crafted features. Deep learning learned features automatically but still needed task-specific training. Foundation models learn general representations from massive unlabeled data, then adapt to ANY task.\n\nThe key insight: the jump from task-specific to general-purpose is what makes generative AI revolutionary. One model can write code, translate languages, summarize documents, and reason about math."
+        },
+        {
+          "type": "concept",
+          "title": "What Generative Actually Means",
+          "content": "All previous ML was DISCRIMINATIVE — it learned boundaries between categories.\n\n• Is this email spam? → Yes/No\n• What digit is this? → 0-9\n\nGenerative models learn the DISTRIBUTION of data itself.\n\n• Write an email about... → generates novel text\n• Complete this code... → generates novel code\n\nThe fundamental operation: given context (prompt), predict what comes next, one token at a time.\n\nThree types:\nAUTOREGRESSIVE (GPT, Claude): Generate left-to-right. Best for text.\nDIFFUSION (Stable Diffusion, DALL-E): Start with noise, denoise iteratively. Best for images.\nVARIATIONAL (VAEs): Learn compressed latent space. Used in drug discovery.",
+          "analogy": "<b>Tech analogy:</b> Discriminative models are like a LINTER — they classify code as good/bad. Generative models are like a CODE GENERATOR — they create new working code. The generator needs much deeper understanding."
+        },
+        {
+          "type": "insight",
+          "title": "The Scaling Laws That Changed Everything",
+          "content": "In 2020, OpenAI discovered SCALING LAWS:\n\nPerformance improves PREDICTABLY as you increase:\n1. MODEL SIZE (parameters)\n2. DATASET SIZE (tokens)\n3. COMPUTE (GPU hours)\n\nMore surprising: EMERGENT ABILITIES appear at scale.\n• GPT-2 (1.5B params): decent text generation\n• GPT-3 (175B params): suddenly does arithmetic, translation, coding\n• GPT-4 (~1.8T params): passes bar exam, writes complex code\n\nThese abilities weren't explicitly trained — they EMERGED from next-token prediction at sufficient scale.",
+          "analogy": "<b>Tech analogy:</b> Scaling laws are like Moore's Law for AI. Just as doubling transistors predictably doubled compute, doubling model size predictably improves capability."
+        },
+        {
+          "type": "quiz",
+          "q": "A model trained ONLY to predict the next word can suddenly do arithmetic at large scale. Why?",
+          "opts": [
+            "It memorized all math from training data",
+            "To predict the next token in '25 × 4 = ', the model must learn arithmetic as an internal subroutine — emergent capabilities arise when large enough",
+            "Arithmetic was a separate training objective",
+            "Random chance"
+          ],
+          "ans": 1,
+          "explanation": "Next-token prediction is deceptively powerful. To predict that '100' follows '25 × 4 = ', the model develops internal circuits that perform multiplication. At small scale it takes shortcuts. At large scale it develops genuine algorithmic subroutines because they minimize prediction error most efficiently."
+        }
+      ]
+    },
+    {
+      "id": "m1",
+      "title": "1. The Transformer Architecture",
+      "icon": "🧠",
+      "tagLabel": "Core",
+      "sections": [
+        {
+          "type": "scenario",
+          "title": "Processing a 10,000-Token Document",
+          "content": "You're building a system to analyze legal contracts. Each contract is 10,000+ words.\n\nThe old approach (RNNs): Process word by word. By page 20, you've 'forgotten' page 1.\n\nThe problem: A clause on page 1 directly affects page 20. The model MUST connect distant references.\n\nTransformers solve this with ATTENTION — every word can directly look at every other word, regardless of distance."
+        },
+        {
+          "type": "visual",
+          "title": "See It: How Self-Attention Connects Words",
+          "vis": "attention_viz",
+          "content": "Watch how 'it' attends to all other words in: 'The server crashed because it was overloaded.'\n\nLine thickness shows attention weight. Notice: 'it' attends most to 'server' — it learned the referent!\n\nDifferent attention HEADS learn different relationships:\n• Head 1: syntactic (subject-verb)\n• Head 2: co-reference (pronoun → noun)\n• Head 3: proximity (nearby words)"
+        },
+        {
+          "type": "concept",
+          "title": "The Full Transformer Block",
+          "content": "A transformer processes a sequence through these steps:\n\n1. TOKEN EMBEDDING: Each word → vector (768 dims)\n   'server' → [0.23, -0.15, 0.88, ...]\n\n2. POSITIONAL ENCODING: Add position info\n   Without this, 'dog bites man' = 'man bites dog'\n\n3. SELF-ATTENTION (the core):\n   Q (Query) = 'What am I looking for?'\n   K (Key) = 'What do I contain?'\n   V (Value) = 'What info do I provide?'\n   Attention = softmax(QK^T / sqrt(d)) * V\n\n4. MULTI-HEAD: Run h independent attentions, concatenate.\n\n5. FEED-FORWARD: Two linear layers with ReLU.\n   This is where 'knowledge' (facts) is stored.\n\n6. RESIDUAL + LAYER NORM:\n   output = LayerNorm(x + Attention(x))\n   The '+x' skip lets gradients flow → enables 96+ layers.\n\nStack 32-96 of these → GPT-4, Claude, LLaMA.",
+          "analogy": "<b>Tech analogy:</b> A transformer block is like a microservice pipeline:\n• Attention = search/lookup service\n• FFN = processing service\n• Residual = message bus (preserves signal)\n• LayerNorm = load balancer (stable range)"
+        },
+        {
+          "type": "insight",
+          "title": "Why Attention is O(n²) and Why It Matters",
+          "content": "Self-attention computes similarity between EVERY pair of tokens.\n\nn tokens → n² scores per head per layer.\n\n• n=1,000: 1M scores → fast\n• n=100,000: 10B scores → very expensive\n\nSolutions:\n• Sparse attention (Longformer): O(n*k)\n• Flash Attention: Same math, optimized memory. 2-4x faster.\n• Mamba / State Space Models: O(n) recurrence.\n\nContext windows: GPT-3 (2K) → GPT-4 (128K) → Claude (200K) → Gemini (1M+).",
+          "analogy": "<b>Tech analogy:</b> O(n²) is like a full mesh network. Sparse attention is hub-and-spoke. Flash Attention optimizes the protocol — same topology, faster."
+        },
+        {
+          "type": "quiz",
+          "q": "What would happen if you removed positional encodings from a transformer?",
+          "opts": [
+            "The model would crash",
+            "'dog bites man' and 'man bites dog' would be treated identically — attention is permutation-equivariant without position info",
+            "The model would be slower",
+            "The model would overfit"
+          ],
+          "ans": 1,
+          "explanation": "Self-attention computes pairwise similarities. It's permutation-equivariant — shuffling input tokens just shuffles outputs. Without positional encodings, word ORDER is invisible. Positional encodings break this symmetry."
+        }
+      ]
+    },
+    {
+      "id": "m2",
+      "title": "2. Tokenization & Embeddings",
+      "icon": "🔤",
+      "tagLabel": "Core",
+      "sections": [
+        {
+          "type": "scenario",
+          "title": "When Your Model Can't Count Letters",
+          "content": "Your AI consistently fails: 'How many R's in STRAWBERRY?' → '2' (wrong — it's 3).\n\nWhy? The model never sees individual LETTERS. It sees TOKENS: 'STRAW' + 'BERRY'.\n\nTokenization — how text becomes pieces — silently shapes EVERYTHING the model can and cannot do."
+        },
+        {
+          "type": "visual",
+          "title": "See It: How Text Becomes Tokens",
+          "vis": "tokenizer_viz",
+          "content": "Watch how different text gets tokenized:\n\n'Hello world' → ['Hello', ' world'] (2 tokens)\n'Strawberry' → ['Str', 'aw', 'berry'] (3 tokens)\n'print(\"hi\")' → ['print', '(\"', 'hi', '\")'] (4 tokens)\n\nCommon words = 1 token. Rare words = split into subwords. This is BPE."
+        },
+        {
+          "type": "concept",
+          "title": "BPE: Building a Vocabulary",
+          "content": "Byte-Pair Encoding builds tokenizer vocabularies:\n\n1. Start with individual bytes (256 base tokens)\n2. Count all adjacent pairs in corpus\n3. Merge the most frequent pair into new token\n4. Repeat until vocabulary reaches target (32K-100K)\n\nConsequences:\n• Common words → 1 token (efficient)\n• Rare words → multiple tokens\n• Code → 2-5x more tokens than English\n• Non-English → more tokens per word (more expensive)",
+          "analogy": "<b>Tech analogy:</b> BPE is like COMPRESSION (gzip). Both find repeated patterns and replace with shorter codes. The vocabulary IS the codebook."
+        },
+        {
+          "type": "insight",
+          "title": "Embeddings: Where Meaning Lives",
+          "content": "After tokenization, each token becomes a VECTOR (768-12,288 dims).\n\nThrough training, embeddings organize meaningfully:\n• 'king' - 'man' + 'woman' ≈ 'queen'\n• Similar words cluster together\n\nSTATIC embeddings (Word2Vec): One fixed vector per word. 'bank' = same vector always.\nCONTEXTUAL embeddings (Transformers): Different vector based on context. 'bank' near 'river' differs from 'bank' near 'money'.",
+          "analogy": "<b>Tech analogy:</b> Static embeddings = a DICTIONARY. Contextual embeddings = a COMPILER WITH TYPE INFERENCE — meaning depends on usage context."
+        },
+        {
+          "type": "quiz",
+          "q": "GPT-4 fails at anagrams and letter counting but excels at semantic tasks. Why?",
+          "opts": [
+            "Not enough training examples",
+            "Tokenization splits text into subword chunks, not characters — the model can't 'see' individual letters",
+            "Character tasks need more compute",
+            "Attention can't handle characters"
+          ],
+          "ans": 1,
+          "explanation": "When 'STRAWBERRY' becomes ['STR','AW','BERRY'], the model processes 3 tokens, not 10 characters. Individual letters within tokens aren't separate entities. Semantic tasks work because meaning operates at word/subword level, aligning with token structure."
+        }
+      ]
+    },
+    {
+      "id": "m3",
+      "title": "3. Prompt Engineering",
+      "icon": "✍️",
+      "tagLabel": "Applied",
+      "sections": [
+        {
+          "type": "scenario",
+          "title": "From 40% to 92% Accuracy in One Hour",
+          "content": "Your team built a support classifier with GPT-4.\n\nInitial prompt: 'Classify this ticket: {text}'\nAccuracy: 40%.\n\nAfter prompt engineering:\n'You are an expert support analyst. Classify into: [Billing, Bug, Feature, Access, General]. Think step by step: 1) Identify concern 2) Match category 3) If ambiguous, prefer actionable. Ticket: {text}'\nAccuracy: 92%. Same model, same data. Only the prompt changed."
+        },
+        {
+          "type": "visual",
+          "title": "See It: Prompt Structure Anatomy",
+          "vis": "prompt_anatomy",
+          "content": "A well-engineered prompt has sections:\n\n[SYSTEM] Role + expertise → behavioral baseline\n[CONTEXT] Background info → reduces ambiguity\n[INSTRUCTION] Task definition → what to do\n[FORMAT] Output structure → JSON, categories\n[EXAMPLES] Few-shot demos → show don't tell\n[GUARDRAILS] Edge cases → prevent failures\n[INPUT] Actual data → what to process"
+        },
+        {
+          "type": "concept",
+          "title": "The Five Core Techniques",
+          "content": "1. ZERO-SHOT: Just describe the task.\n   Best for well-defined, common tasks.\n\n2. FEW-SHOT: Provide 3-5 examples.\n   Best when showing pattern is clearer than describing.\n   Key: examples should cover EDGE CASES.\n\n3. CHAIN-OF-THOUGHT: 'Think step by step.'\n   Best for math/logic. 30-50% improvement on complex tasks.\n   Why: forces intermediate computation tokens.\n\n4. ROLE PROMPTING: 'You are a senior security engineer.'\n   Activates relevant knowledge neighborhoods in weights.\n\n5. STRUCTURED OUTPUT: 'Respond ONLY with valid JSON.'\n   Best for downstream processing.",
+          "analogy": "<b>Tech analogy:</b> Prompt engineering is API design.\n• Zero-shot = standard API call\n• Few-shot = example request/response in docs\n• CoT = verbose logging\n• Role = API mode/profile\n• Structured output = response schema"
+        },
+        {
+          "type": "insight",
+          "title": "Why Chain-of-Thought Works",
+          "content": "A transformer has FIXED computation per token (same layers regardless of difficulty).\n\nChain-of-thought changes this. By generating intermediate tokens, the model gets MORE computation:\n\nWithout CoT: 'What is 47 × 38?' → [96 layers] → answer (hard)\nWith CoT: 'First, 47 × 8 = 376. Then 47 × 30 = 1410. Total = 1786.' Each step gets 96 layers.\n\nMore tokens = more compute = more reasoning capacity.",
+          "analogy": "<b>Tech analogy:</b> CoT is like breaking a complex function into smaller functions. Each intermediate step is a variable between functions."
+        },
+        {
+          "type": "quiz",
+          "q": "Few-shot examples show clean invoices. In production, 30% are messy. Accuracy drops to 55%. Best fix?",
+          "opts": [
+            "More clean examples",
+            "Add few-shot examples of MESSY invoices showing how to handle edge cases",
+            "Use a larger model",
+            "Remove examples, use zero-shot"
+          ],
+          "ans": 1,
+          "explanation": "The examples created an implicit assumption: 'all invoices are clean.' Adding 2-3 messy invoice examples teaches the model the DECISION PROCESS for edge cases. This is the most common prompt engineering failure: examples only covering the easy 70%."
+        }
+      ]
+    },
+    {
+      "id": "m4",
+      "title": "4. RAG: Retrieval-Augmented Generation",
+      "icon": "📚",
+      "tagLabel": "Applied",
+      "sections": [
+        {
+          "type": "scenario",
+          "title": "Your Chatbot Confidently Makes Things Up",
+          "content": "Customer asks: 'What's your refund policy for annual plans?'\n\nModel responds: 'Full refund within 30 days.'\nActual policy: 'Prorated refund at any time.'\n\nThe model HALLUCINATED. RAG solves this: retrieve relevant docs first, then generate based ONLY on retrieved content."
+        },
+        {
+          "type": "visual",
+          "title": "See It: The RAG Pipeline",
+          "vis": "rag_pipeline",
+          "content": "Three stages:\n\n1. EMBED: Documents → vectors (numbers capturing meaning)\n2. RETRIEVE: Question comes in → find most similar doc vectors\n3. GENERATE: Feed retrieved chunks + question to LLM\n\nThe LLM now generates from FACTS, not memory."
+        },
+        {
+          "type": "concept",
+          "title": "The Three Pillars of RAG",
+          "content": "PILLAR 1: CHUNKING\nBad: Split every 500 chars (cuts mid-sentence)\nBetter: Split by paragraph/section\nBest: Semantic chunking with LLM\nSweet spot: 200-500 tokens with 50-token overlap.\n\nPILLAR 2: EMBEDDINGS\nConvert text to vectors where similar meaning = nearby vectors.\nModels: OpenAI text-embedding-3-large, Cohere embed-v3, E5/BGE.\nKey: Use SAME model for docs and queries.\n\nPILLAR 3: RETRIEVAL\nSemantic: embed query, find nearest neighbors.\nHybrid: semantic + keyword search combined.\nReranking: Retrieve top-20, cross-encoder reranks to top-5.",
+          "analogy": "<b>Tech analogy:</b> RAG is a search engine for your AI.\n• Chunking = indexing\n• Embeddings = search index\n• Retrieval = search query\n• Generation = synthesized answer"
+        },
+        {
+          "type": "insight",
+          "title": "Vector Databases",
+          "content": "Store millions of vectors, search in milliseconds.\n\nPinecone: Fully managed, serverless.\nWeaviate: Open-source, hybrid search.\nChromaDB: Lightweight, prototyping.\nPgVector: PostgreSQL extension.\nQdrant: High-performance, production.\n\nSearch algorithms:\nHNSW: Graph-based, O(log n).\nIVF: Cluster-based, O(n/k).\nTrade-off: Speed vs recall. 95% of the time approximate = exact results, 100x faster.",
+          "analogy": "<b>Tech analogy:</b> Vector search is like DNS. You don't check every IP to find google.com. HNSW builds a hierarchical graph to find nearest vectors without checking all."
+        },
+        {
+          "type": "quiz",
+          "q": "RAG retrieves correct docs 90% of the time, but LLM gives wrong answers 25% of the time. Most likely issue?",
+          "opts": [
+            "LLM too small",
+            "Chunks too large (irrelevant context confuses LLM) or answer spans chunk boundary",
+            "Vector DB slow",
+            "Need more docs"
+          ],
+          "ans": 1,
+          "explanation": "This is 'retrieval good, generation bad.' Causes: chunks too large (LLM distracted), answer spans chunk boundary (half retrieved), or prompt doesn't say 'answer ONLY from context.' Fix: optimize chunks with overlap, add context-only instruction."
+        }
+      ]
+    },
+    {
+      "id": "m5",
+      "title": "5. Fine-Tuning & Adaptation",
+      "icon": "🔧",
+      "tagLabel": "Advanced",
+      "sections": [
+        {
+          "type": "scenario",
+          "title": "When Prompting Isn't Enough",
+          "content": "Your medical AI needs strict clinical guidelines. You've tried detailed prompts, few-shot, RAG with guidelines — it still occasionally gives dangerous advice.\n\nThe model's base behavior (helpful, general) conflicts with your need (cautious, domain-specific). Fine-tuning modifies weights to permanently encode new behavior."
+        },
+        {
+          "type": "visual",
+          "title": "See It: Full Fine-Tuning vs LoRA",
+          "vis": "lora_viz",
+          "content": "FULL FINE-TUNING: Update ALL 175B params.\nMemory: ~1.4 TB GPU RAM. Cost: $10,000+.\n\nLoRA: Freeze originals. Add tiny adapter matrices.\nInstead of 4096×4096 (16M params), add 4096×8 + 8×4096 (65K params — 0.4%).\nMemory: ~16 GB. Cost: $50-200.\n\nKey insight: The CHANGE needed is LOW-RANK."
+        },
+        {
+          "type": "concept",
+          "title": "When to Use Each Method",
+          "content": "PROMPT ENGINEERING: Task well-defined, model already knows how.\nFEW-SHOT: <20 good examples, learnable pattern.\nRAG: Need private/current knowledge.\nLoRA FINE-TUNING: Need new behavior patterns (100-10K examples).\nFULL FINE-TUNING: Deep domain adaptation (10K+ examples).\nDISTILLATION: GPT-4 capabilities at 7B model cost.\n\nDecision ladder: Try prompting → RAG → fine-tuning → full training.\nOnly escalate when current approach truly isn't sufficient.",
+          "analogy": "<b>Tech analogy:</b> Adaptation hierarchy = software config:\n• Prompting = config file\n• RAG = external API call\n• LoRA = plugin system\n• Full fine-tuning = fork the codebase\n• Pretraining = rewrite the app"
+        },
+        {
+          "type": "insight",
+          "title": "Data Quality > Quantity",
+          "content": "1,000 high-quality examples beats 100K noisy ones. Every time.\n\nHigh quality means:\n• CORRECT: Verified by domain expert\n• DIVERSE: Covers edge cases\n• CONSISTENT: Same format\n• REPRESENTATIVE: Matches production distribution\n\nActive learning loop:\n1. Curate 500 examples → Train v1\n2. Run v1 on unlabeled data\n3. Experts correct mistakes → new training examples\n4. Retrain v2. Repeat.\n\nCatastrophic forgetting: Fine-tuning ONLY on domain data makes model forget general abilities. Fix: mix 10-20% general data.",
+          "analogy": "<b>Tech analogy:</b> Training data quality is like TEST QUALITY. 50 well-designed edge case tests beat 5,000 happy-path-only tests."
+        },
+        {
+          "type": "quiz",
+          "q": "You fine-tune LLaMA-7B on 5K medical Q&A pairs. It answers medical questions well but can't write emails or do math anymore. What happened?",
+          "opts": [
+            "Model too small",
+            "Catastrophic forgetting — weights shifted entirely toward medical patterns, overwriting general capabilities. Fix: mix 20% general data",
+            "Need more medical data",
+            "Learning rate too low"
+          ],
+          "ans": 1,
+          "explanation": "Catastrophic forgetting: exclusive medical training overwrote circuits for email/math. Solutions: (1) Mix 20% general data. (2) Use LoRA (keeps original weights frozen). (3) Lower learning rate. (4) Early stopping before general abilities degrade."
+        }
+      ]
+    },
+    {
+      "id": "m6",
+      "title": "6. AI Agents & Tool Use",
+      "icon": "🛠️",
+      "tagLabel": "Advanced",
+      "sections": [
+        {
+          "type": "scenario",
+          "title": "From Chatbot to Autonomous Worker",
+          "content": "A chatbot answers questions. An AGENT takes actions.\n\nYour system must:\n1. Read customer email\n2. Look up account in CRM\n3. Check order history\n4. Decide: refund, replace, or escalate\n5. Draft response\n6. Send (with human approval)\n\nThis requires PLANNING, TOOL USE, MEMORY, and JUDGMENT."
+        },
+        {
+          "type": "visual",
+          "title": "See It: The ReAct Agent Loop",
+          "vis": "agent_loop",
+          "content": "The ReAct (Reason + Act) framework:\n\nTHINK: 'Customer upset about late delivery. Check order status.'\nACT: call check_order_status(id='12345')\nOBSERVE: 'Shipped 5 days ago, stuck in transit'\nTHINK: 'Delayed. Check reshipping options.'\nACT: call check_reshipping(id='12345')\nOBSERVE: 'Expedited available, 2 days'\nTHINK: 'Offer reshipping.'\nACT: generate_response(...)\nDONE"
+        },
+        {
+          "type": "concept",
+          "title": "Building Reliable Agents",
+          "content": "TOOL DEFINITION matters:\nGood: name='search_orders', desc='Search by order_id, email, or date range. Returns status, items, shipping.'\nBad: name='search', desc='Searches stuff'\n\nMEMORY:\n• Short-term: conversation history\n• Working: scratchpad for intermediate results\n• Long-term: vector DB for past interactions\n\nERROR HANDLING:\n• Tool fails → retry with backoff\n• Unexpected format → parse gracefully\n• Stuck in loop → max iterations + human fallback\n• Dangerous action → require human approval",
+          "analogy": "<b>Tech analogy:</b> An agent is a microservices orchestrator.\n• LLM = orchestration engine\n• Tools = microservices\n• Memory = state store\n• Guardrails = circuit breakers"
+        },
+        {
+          "type": "insight",
+          "title": "The Reliability Problem",
+          "content": "Each step has some error probability. If each is 95% accurate over 10 steps:\n0.95^10 = 60% success. Not production-ready.\n\nSolutions:\n1. REDUCE STEPS: 3 instead of 10 → 86%\n2. INCREASE PER-STEP ACCURACY: 0.99^10 = 90%\n3. VERIFICATION LOOPS: Check each result\n4. HUMAN-IN-THE-LOOP: Approval for high-stakes\n5. FALLBACK: Low confidence → ask for help",
+          "analogy": "<b>Tech analogy:</b> Agent reliability = distributed system reliability. Compound failure probability is the same formula for chained service uptime."
+        },
+        {
+          "type": "quiz",
+          "q": "Agent retrieves data 98%, analyzes 95%, generates response 90%. End-to-end success rate? Most impactful fix?",
+          "opts": [
+            "83.7%. Improve generation (90→95%) — weakest link has biggest compound impact",
+            "83.7%. Improve retrieval (first step)",
+            "98%. Steps are independent",
+            "95%. Take average"
+          ],
+          "ans": 0,
+          "explanation": "0.98 × 0.95 × 0.90 = 83.7%. Improving weakest step (90→95%) raises to 88.4% (+4.7%). Improving strongest (98→99%) only gives 84.6% (+0.9%). Always fix the weakest link first."
+        }
+      ]
+    }
+  ]
+}

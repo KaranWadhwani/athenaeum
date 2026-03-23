@@ -1,0 +1,186 @@
+{
+  "version": "1.0.0",
+  "courses": [
+    {
+      "id": "genai",
+      "file": "genai.json",
+      "title": "Generative AI",
+      "emoji": "🤖",
+      "tag": "AI/ML",
+      "desc": "Master LLMs, prompt engineering, RAG, fine-tuning, and AI agents",
+      "tags": [
+        "ai",
+        "ml",
+        "llm",
+        "generative",
+        "gpt",
+        "prompt",
+        "rag",
+        "agents",
+        "genai"
+      ],
+      "moduleCount": 7,
+      "status": "published"
+    },
+    {
+      "id": "databricks",
+      "file": "databricks.json",
+      "title": "Databricks & Lakehouse",
+      "emoji": "🏗️",
+      "tag": "Data",
+      "desc": "Master the Lakehouse paradigm, Delta Lake, Unity Catalog, Spark",
+      "tags": [
+        "databricks",
+        "lakehouse",
+        "spark",
+        "delta",
+        "data",
+        "lake",
+        "warehouse"
+      ],
+      "moduleCount": 7,
+      "status": "published"
+    },
+    {
+      "id": "devops",
+      "file": "devops.json",
+      "title": "DevOps & Cloud",
+      "emoji": "☁️",
+      "tag": "DevOps",
+      "desc": "Containers, Kubernetes, CI/CD, IaC, and observability",
+      "tags": [
+        "devops",
+        "cloud",
+        "docker",
+        "kubernetes",
+        "k8s",
+        "cicd",
+        "terraform"
+      ],
+      "moduleCount": 7,
+      "status": "published"
+    },
+    {
+      "id": "sysdesign",
+      "file": "sysdesign.json",
+      "title": "System Design",
+      "emoji": "🏛️",
+      "tag": "Engineering",
+      "desc": "Design scalable distributed systems and APIs",
+      "tags": [
+        "system",
+        "design",
+        "architecture",
+        "scalability",
+        "distributed",
+        "api",
+        "microservices",
+        "caching"
+      ],
+      "moduleCount": 7,
+      "status": "published"
+    },
+    {
+      "id": "dataeng",
+      "file": "dataeng.json",
+      "title": "Data Engineering",
+      "emoji": "🔧",
+      "tag": "Data",
+      "desc": "Data pipelines, warehouses, and streaming systems",
+      "tags": [
+        "data",
+        "engineering",
+        "pipeline",
+        "etl",
+        "streaming",
+        "kafka",
+        "airflow",
+        "sql",
+        "dbt"
+      ],
+      "moduleCount": 7,
+      "status": "published"
+    },
+    {
+      "id": "nlp",
+      "file": "nlp.json",
+      "title": "NLP Algorithms",
+      "emoji": "🗣️",
+      "tag": "AI/ML",
+      "desc": "Text processing, transformers, and language understanding",
+      "tags": [
+        "nlp",
+        "natural",
+        "language",
+        "transformers",
+        "bert"
+      ],
+      "moduleCount": 7,
+      "status": "draft"
+    },
+    {
+      "id": "mlops",
+      "file": "mlops.json",
+      "title": "MLOps",
+      "emoji": "⚙️",
+      "tag": "AI/ML",
+      "desc": "Experiment tracking, model serving, and monitoring",
+      "tags": [
+        "mlops",
+        "ml",
+        "model",
+        "deployment",
+        "monitoring"
+      ],
+      "moduleCount": 7,
+      "status": "draft"
+    },
+    {
+      "id": "cybersec",
+      "file": "cybersec.json",
+      "title": "Cybersecurity",
+      "emoji": "🔐",
+      "tag": "Security",
+      "desc": "Security principles, threat modeling, secure development",
+      "tags": [
+        "security",
+        "cybersecurity",
+        "owasp",
+        "encryption"
+      ],
+      "moduleCount": 7,
+      "status": "draft"
+    },
+    {
+      "id": "llmeval",
+      "file": "llmeval.json",
+      "title": "LLM Evaluation & Safety",
+      "emoji": "🛡️",
+      "tag": "AI/ML",
+      "desc": "Evaluate, benchmark, and align large language models",
+      "tags": [
+        "llm",
+        "evaluation",
+        "safety",
+        "alignment",
+        "benchmark"
+      ],
+      "moduleCount": 7,
+      "status": "draft"
+    }
+  ],
+  "trending": [
+    "Gen AI",
+    "Databricks",
+    "Kubernetes",
+    "NLP",
+    "System Design",
+    "MLOps",
+    "Data Engineering",
+    "DevOps",
+    "RAG",
+    "Fine-Tuning",
+    "Transformers",
+    "Terraform"
+  ]
+}
